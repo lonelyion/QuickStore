@@ -8,6 +8,7 @@ using System.Text;
 using System.Windows.Forms;
 using System.IO;
 using System.Threading;
+using Microsoft.VisualBasic;
 
 namespace QuickStore
 {
@@ -81,29 +82,28 @@ namespace QuickStore
 	 */
 
 	/** PepsiCo Warehouse Sales
-	 * Store Num   
-	 * TD Linx    
-	 * Customer Number   
-	 * Status
-	 * Store Name   
-	 * ACV   
-	 * Address   
-	 * City   
-	 * State
-	 * Postal Code   
-	 * County   
-	 * Country   
-	 * Phone Number   
-	 * Fax Number   
-	 * Chain   
-	 * Volume   
-	 * Impact 
-	 * Frequency
-	 * Classification   
-	 * Franchise
-	 * Nielsen Market   
-	 * Corporate   
-	 * Notes 
+	 * Store Num		(Inaccessible)
+	 * TD Linx			9
+	 * Customer Number	2
+	 * TAB TAB			(Status)
+	 * Store Name		1
+	 * TAB TAB			(ACV)
+	 * Address			3
+	 * City				4
+	 * State			5
+	 * Postal Code		6
+	 * TAB TAB			(County)
+	 * USA TAB   
+	 * Phone Number		7
+	 * TAB TAB			(Fax)
+	 * Chain ID			8
+	 * Volume			(Inaccessible)
+	 * TAB				(Impact)
+	 * TAB	 			(Frequency)
+	 * Classification	(Inaccessible)
+	 * TAB				(Franchise)
+	 * Nielsen Market	(Inaccessible)
+	 * Corporate (0/1)	11
 	 */
 
 	/** Time Warner
@@ -146,7 +146,8 @@ namespace QuickStore
 		const int FJ = 1;
 		const int JOTS = 2;
 		const int PWS = 3;
-		const int TMX = 4;
+		const int SCEA = 4;
+		const int TMX = 5;
 
 		StreamReader SR;
 		string file;
@@ -206,6 +207,7 @@ namespace QuickStore
 					search = data[8];
 					break;
 				case FJ: // Farmer John
+				case SCEA: // Sony USA
 					send = data[1] + "{TAB}{TAB}" + data[0] + "{TAB}{TAB}" + data[2] + "{TAB}" + data[3] + "{TAB}" +
 						data[4] + "{TAB}" + data[5] + "{TAB}USA{TAB}" + data[6] + "{TAB}" + data[7] + "{TAB}{ENTER}";
 					format = string.Format("{0,3}: {1}", index + 1, data[0]);
@@ -213,7 +215,7 @@ namespace QuickStore
 					search = data[8];
 					break;
 				case JOTS: // Jennie-O
-					string td = Microsoft.VisualBasic.Interaction.InputBox("Please enter TD Number", String.Format("{0} {1}", data[0], data[1]));
+					string td = Interaction.InputBox("Please enter TD Number", String.Format("{0} {1}", data[0], data[1]));
 					send = data[1] + "{TAB}" + td + "{TAB}" + data[0] + "{TAB}{TAB}" + data[2] + "{TAB}" + data[3] + "{TAB}" +
 						data[4] + "{TAB}" + data[5] + "{TAB}USA{TAB}" + data[6] + "{TAB}" + data[7] + "{TAB}{ENTER}";
 					format = string.Format("{0,3}: {1}", index + 1, data[0]);
@@ -221,34 +223,56 @@ namespace QuickStore
 					search = data[8];
 					break;
 				case PWS: // PepsiCo Warehouse Sales
-					//break;
+					send = data[9] + "{TAB}"		// tdlink					
+						+ data[2] + "{TAB}"			// customer number
+						+ (data[10] == "0" ? "Closed" : "Open") + " {TAB}"	// status
+						+ data[1] + "{TAB}{TAB}"	// store name / ACV
+						+ data[3] + "{TAB}"			// address
+						+ data[4] + "{TAB}"			// city
+						+ data[5] + "{TAB}"			// state
+						+ data[6] + "{TAB}"			// postal code
+						+ "{TAB}USA{TAB}"			// county / USA
+						+ data[7] + "{TAB}{TAB}"	// phone / fax
+													// corporate flag
+						+ (data[11] == "1" ? "{TAB 4} +{TAB 4}" : "")
+						+ "{ENTER}";				// chain 
+
+					format = string.Format("{0,3}: {1}", index + 1, data[1]);
+					//query += (index > 0 ? "', '" : "'") + data[9];
+					search = "";					// dummy assign
+					break;
 				case TMX: // Timex
 				default:
 					send = data[3] + "{TAB}" + data[11] + "{TAB}" + data[2] + "{TAB}" + data[5] + "{TAB}" +
-						data[10] + "{TAB}" + data[6] + "{TAB}" + data[7] + "{TAB}" + data[8] + "{TAB}" + data[9] + "{TAB}USA{TAB}" + "{TAB}{TAB}{ENTER}";
+						data[10] + "{TAB}" + data[6] + "{TAB}" + data[7] + "{TAB}" + data[8] + "{TAB}" + data[9] + "{TAB}USA{TAB}" + "{TAB}{TAB}"
+					// code entry
+					+ (!String.IsNullOrWhiteSpace(data[4]) ? "{TAB}" + data[4] + "+{TAB}" : "")
+					+"{ENTER}";
 					format = string.Format("{0,3}: {1} {2}", index + 1, data[2], data[3]);
 					search = data[1];
-					//query += (index > 0 ? "', '" : "'") + data[0];
 					break;
 			}
 
 			tbConsole.AppendText(format + Environment.NewLine);
 
 			SendKeys.SendWait(send);
+			System.Threading.Thread.Sleep(500);			
+			SendKeys.SendWait("{ENTER}");		
 
-			System.Threading.Thread.Sleep(750);
-			SendKeys.SendWait("{ENTER}");
-			System.Threading.Thread.Sleep(750);
+			// PWS Chain Lookup
+			if (cbCustomer.SelectedIndex == PWS)
+			{
+				string chain = "SELECT Name from tChain WHERE ID = " + data[8];
+				Clipboard.SetText(chain);
+				search = Interaction.InputBox("SQL Query\n" + chain + "\n has been added to clipboard.\nPlease enter corresponding Chain Name", String.Format("Chain ID {0} for {1}", data[8], data[1]));
+			}
+
+			System.Threading.Thread.Sleep(500);
 			SendKeys.SendWait(search + "{ENTER}");
 
-			if (cbCustomer.SelectedIndex == TMX)
+			if (cbCustomer.SelectedIndex == TMX || cbCustomer.SelectedIndex == PWS)
 			{
-				if (!String.IsNullOrWhiteSpace(data[4]))
-				{
-					Clipboard.SetText(data[4]);
-					MessageBox.Show(String.Format("Code for Store {0} {1} added to Clipboard.", data[2], data[3]), "Attention!");	
-				}
-				query += (index > 0 ? "', '" : "'") + Microsoft.VisualBasic.Interaction.InputBox("Please enter TD Number", String.Format("{0} {1}", data[2], data[3]));
+				query += (index > 0 ? "', '" : "'") + Interaction.InputBox("After saving store, please enter TD Number", String.Format("{0} {1}", data[2], data[3]));
 			}
 			updateStatusBar();
 
@@ -299,6 +323,8 @@ namespace QuickStore
 							tbConsole.AppendText(data[0] + Environment.NewLine);
 							break;
 						case PWS:
+							tbConsole.AppendText(String.Format("{0}", data[1]) + Environment.NewLine);
+							break;
 						case TMX: // Timex
 						default:
 							tbConsole.AppendText(String.Format("{0} {1}", data[2], data[3]) + Environment.NewLine);

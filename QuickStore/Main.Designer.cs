@@ -166,6 +166,7 @@
             "Farmer John",
             "Jennie-O Turkey Store",
             "PepsiCo Warehouse Sales",
+            "Sony USA",
             "Timex"});
 			this.cbCustomer.Location = new System.Drawing.Point(104, 12);
 			this.cbCustomer.Name = "cbCustomer";
